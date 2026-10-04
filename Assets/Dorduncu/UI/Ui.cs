@@ -189,7 +189,7 @@ namespace Dorduncu.UI
         {
             if (b.interactable == on) return;
             b.interactable = on;
-            var cg = b.GetComponent<CanvasGroup>() ?? b.gameObject.AddComponent<CanvasGroup>();
+            if (!b.TryGetComponent(out CanvasGroup cg)) cg = b.gameObject.AddComponent<CanvasGroup>();   // (?? would miss Unity's fake null)
             cg.alpha = on ? 1f : 0.45f;
         }
 
@@ -197,12 +197,14 @@ namespace Dorduncu.UI
         {
             var rt = Frame(parent, "Input", Pal.WoodDark, Pal.GoldDark, 3);
             var field = rt.gameObject.AddComponent<InputField>();
-            var text = Txt(rt, "", 30, Pal.Cream, TextAnchor.MiddleLeft, false);
-            text.rectTransform.Stretch(16);
+            // text, placeholder (and the caret UGUI creates as first sibling) live in their own area above the opaque fill
+            var area = Node("Text Area", rt).Stretch(16);
+            var text = Txt(area, "", 30, Pal.Cream, TextAnchor.MiddleLeft, false);
+            text.rectTransform.Stretch(0);
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.supportRichText = false;
-            var ph = Txt(rt, placeholder, 30, new Color(Pal.Cream.r, Pal.Cream.g, Pal.Cream.b, 0.4f), TextAnchor.MiddleLeft, false);
-            ph.rectTransform.Stretch(16);
+            var ph = Txt(area, placeholder, 30, new Color(Pal.Cream.r, Pal.Cream.g, Pal.Cream.b, 0.4f), TextAnchor.MiddleLeft, false);
+            ph.rectTransform.Stretch(0);
             ph.fontStyle = FontStyle.Italic;
             field.textComponent = text;
             field.placeholder = ph;

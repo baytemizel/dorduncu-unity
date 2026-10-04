@@ -126,7 +126,7 @@ namespace Dorduncu.Client
             catch (GameError e) { RaiseError(e.Code, e.Message); }
         }
 
-        public override void Leave() { _closed = true; _timer?.Cancel(); RaiseClosed("left"); }
+        public override void Leave() { if (_closed) return; _closed = true; _timer?.Cancel(); RaiseClosed("left"); }
 
         private void StartHand()
         {

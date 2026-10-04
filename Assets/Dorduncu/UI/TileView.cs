@@ -66,13 +66,14 @@ namespace Dorduncu.UI
         /// <summary>Gold glow (hint / finishing tile). seconds ≤ 0 = until cleared.</summary>
         public void Glow(bool on, float seconds = 0)
         {
+            if (!on && _glowUntil > Time.time) return;           // a timed hint glow outlives re-renders
             _glowUntil = on && seconds > 0 ? Time.time + seconds : 0;
             var c = _glow.color; c.a = on ? 0.95f : 0; _glow.color = c;
         }
 
         private void Update()
         {
-            if (_glowUntil > 0 && Time.time > _glowUntil) Glow(false);
+            if (_glowUntil > 0 && Time.time > _glowUntil) { _glowUntil = 0; Glow(false); }
         }
 
         public void OnPointerClick(PointerEventData e)

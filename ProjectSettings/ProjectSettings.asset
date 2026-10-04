@@ -6,6 +6,8 @@ PlayerSettings:
   serializedVersion: 28
   companyName: Dorduncu
   productName: "D\xF6rd\xFCnc\xFC"
+  productGUID: d0633ab2e14049e59fe220a42b2822a9
+  bundleVersion: 1.0.0
   defaultScreenOrientation: 4
   allowedAutorotateToPortrait: 0
   allowedAutorotateToPortraitUpsideDown: 0
@@ -22,3 +24,9 @@ PlayerSettings:
     iPhone: app.dorduncu
   AndroidMinSdkVersion: 24
   iOSTargetOSVersionString: 13.0
+  AndroidBundleVersionCode: 1
+  AndroidTargetArchitectures: 2
+  scriptingBackend:
+    Android: 1
+    iPhone: 1
+  insecureHttpOption: 2

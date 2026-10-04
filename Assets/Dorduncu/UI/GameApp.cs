@@ -44,6 +44,8 @@ namespace Dorduncu.UI
         private float _toastUntil;
         private string _lbBoard = "season";
         private int _reportSeat = -1, _reportReason;
+        private int _searchId;            // invalidates callbacks of a cancelled table search
+        private bool _waitingForTable;
 
         // ---------------------------------------------------------------- bootstrap
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -111,7 +113,7 @@ namespace Dorduncu.UI
         private void Update()
         {
             if (_toast != null && _toast.transform.parent.gameObject.activeSelf && Time.time > _toastUntil) _toast.transform.parent.gameObject.SetActive(false);
-            if (_busy.activeSelf && _model != null && _model.View != null) Hide(_busy);
+            if (_waitingForTable && _busy.activeSelf && _model != null && _model.View != null) { _waitingForTable = false; Hide(_busy); }
             if (_model != null && _model.LastError != null)
             {
                 var e = _model.LastError;
@@ -178,24 +180,55 @@ namespace Dorduncu.UI
             if (!Online) { Toast("Çevrimiçi oyun için sunucu bağlantısı gerekli."); return; }
             SaveName();
             _lastMode = "online";
-            _busyText.text = "Masa aranıyor…";
-            Show(_busy);
+            int search = BeginSearch("Masa aranıyor…");
             _api.UpdateProfile(new Dictionary<string, object> { ["displayName"] = PlayerName() }, _ =>
+            {
+                if (search != _searchId) return;
                 _api.Play(r =>
                 {
-                    if (r.Status == 402) { Hide(_busy); Show(_limit); return; }
-                    if (!r.Ok) { Hide(_busy); Toast(ErrorText(r.ErrorCode, r.ErrorMessage)); return; }
-                    JoinWithTicket(r.Data.S("ticket"));
-                }));
+                    if (search != _searchId) return;
+                    if (r.Status == 402) { EndSearch(); Show(_limit); return; }
+                    if (!r.Ok) { EndSearch(); Toast(ErrorText(r.ErrorCode, r.ErrorMessage)); return; }
+                    JoinWithTicket(r.Data.S("ticket"), search);
+                });
+            });
         }
 
-        private void JoinWithTicket(string ticket)
+        /// <summary>Show the busy overlay for a new table search; returns its id (stale callbacks compare against _searchId).</summary>
+        private int BeginSearch(string text)
+        {
+            DropTable();
+            _busyText.text = text;
+            _waitingForTable = true;
+            Show(_busy);
+            return ++_searchId;
+        }
+
+        private void EndSearch() { _waitingForTable = false; Hide(_busy); }
+
+        /// <summary>"Vazgeç": forget the search; leave the table only if one was already joined for it.</summary>
+        private void CancelSearch()
+        {
+            _searchId++;
+            EndSearch();
+            if (_model != null) { _model.Table.Leave(); DropTable(); }
+            Show(_home);
+        }
+
+        private void DropTable()
+        {
+            _model?.Dispose();
+            _model = null;
+        }
+
+        private void JoinWithTicket(string ticket, int search)
         {
             var t = new OnlineTable(_api, _clock);
             StartTable(t);
             t.Join(ticket, OfflineTable.RandomSeed().Substring(0, 32), r =>
             {
-                if (!r.Ok) { Hide(_busy); Toast(ErrorText(r.ErrorCode, r.ErrorMessage)); BackHome(); }
+                if (search != _searchId) { t.Leave(); return; }
+                if (!r.Ok) { EndSearch(); Toast(ErrorText(r.ErrorCode, r.ErrorMessage)); BackHome(); }
                 else _busyText.text = "Oyuncular bekleniyor…";
             });
         }
@@ -210,7 +243,7 @@ namespace Dorduncu.UI
             t.Closed += reason => { if (reason == "abandoned" || reason == "lost") { Toast("Masa kapandı."); BackHome(); } };
             _table.Bind(_model);
             Hide(_home);
-            if (t.Mode == "offline") Hide(_busy);
+            if (t.Mode == "offline") EndSearch();
             RebuildChatTargets();
         }
 
@@ -229,6 +262,8 @@ namespace Dorduncu.UI
 
         private void BackHome()
         {
+            DropTable();
+            _waitingForTable = false;
             Hide(_result); Hide(_busy); Hide(_chat);
             Show(_home);
             if (Online) _api.Me(r => { if (r.Ok) ApplyMe(r.Data); });
@@ -244,14 +279,20 @@ namespace Dorduncu.UI
             var busy = Ui.Overlay(_canvas, "Busy", 600, 220, out _busy);
             _busyText = Ui.Txt(busy, "Masa aranıyor…", 40, Pal.Cream);
             _busyText.rectTransform.Place(0, 20, 560, 60);
-            var cancel = Ui.Btn(busy, "Vazgeç", Ui.Style.Wood, LeaveTable, 26);
+            var cancel = Ui.Btn(busy, "Vazgeç", Ui.Style.Wood, CancelSearch, 26);
             ((RectTransform)cancel.transform).Place(0, -60, 220, 60);
             Hide(_busy);
 
             var res = Ui.Overlay(_canvas, "Result", 900, 720, out _result);
             _resultTitle = Ui.Title(res, "", 290, 60);
             _resultRows = Ui.Node("Rows", res).Place(0, 40, 800, 380);
-            Place(Ui.Btn(res, "Tekrar Oyna", Ui.Style.Primary, () => { Hide(_result); if (_lastMode == "online") PlayOnline(); else PlayOffline(); }), 0, -220, 720, 80);
+            Place(Ui.Btn(res, "Tekrar Oyna", Ui.Style.Primary, () =>
+            {
+                Hide(_result);
+                if (_lastMode == "tournament") { BackHome(); Show(_tours); LoadTours(); }   // next round: from the tournament list
+                else if (_lastMode == "online") PlayOnline();
+                else PlayOffline();
+            }), 0, -220, 720, 80);
             Place(Ui.Btn(res, "Ana Menü", Ui.Style.Wood, () => { _model?.Table.Leave(); BackHome(); }), 0, -310, 720, 70);
             Hide(_result);
 
@@ -278,6 +319,9 @@ namespace Dorduncu.UI
             BuildChat();
 
             var toast = Ui.Frame(_canvas, "Toast", new Color(0.1f, 0.05f, 0.02f, 0.92f), Pal.Gold, 3).Place(0, 300, 1100, 76);
+            var tcg = toast.gameObject.AddComponent<CanvasGroup>();
+            tcg.blocksRaycasts = false;                      // never steal clicks from what is underneath
+            tcg.interactable = false;
             _toast = Ui.Txt(toast, "", 30, Pal.Cream);
             _toast.rectTransform.Stretch(10);
             toast.gameObject.SetActive(false);
@@ -502,9 +546,7 @@ namespace Dorduncu.UI
                             if (!rr.Ok) { Toast(ErrorText(rr.ErrorCode, rr.ErrorMessage)); return; }
                             Hide(_tours);
                             _lastMode = "tournament";
-                            _busyText.text = "Turnuva masası açılıyor…";
-                            Show(_busy);
-                            JoinWithTicket(rr.Data.S("ticket"));
+                            JoinWithTicket(rr.Data.S("ticket"), BeginSearch("Turnuva masası açılıyor…"));
                         }), 26), 400, 0, 220, 64);
                 }
                 var t2 = Ui.Txt(_tourList, $"Biletlerin: {_tickets}", 26, Pal.Gold);

@@ -26,8 +26,19 @@ namespace Dorduncu.UI
                 if (body != null) req.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(body));
                 req.downloadHandler = new DownloadHandlerBuffer();
                 req.timeout = TimeoutSec;
-                foreach (var h in headers) req.SetRequestHeader(h.Key, h.Value);
-                yield return req.SendWebRequest();
+                UnityWebRequestAsyncOperation op;
+                try
+                {
+                    foreach (var h in headers) req.SetRequestHeader(h.Key, h.Value);
+                    op = req.SendWebRequest();          // throws e.g. for plain http when insecure HTTP is not allowed
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[Dördüncü] " + e.Message);
+                    done(new HttpResponse { Status = 0 });
+                    yield break;
+                }
+                yield return op;
                 bool network = req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.DataProcessingError;
                 done(new HttpResponse { Status = network ? 0 : (int)req.responseCode, Body = req.downloadHandler?.text });
             }

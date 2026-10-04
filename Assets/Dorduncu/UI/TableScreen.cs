@@ -41,7 +41,8 @@ namespace Dorduncu.UI
         private Image _okeyBanner;
         private float _bannerUntil;
         private long _turnStart, _turnDeadline;
-        private int _turnSeat = -1;
+        private int _turnSeat = -1, _dragId = -1;
+        private string _turnPhase;
         private bool _dirty;
 
         private int Pos(int seat) => (seat - Model.MySeat + 4) % 4;   // 0 me (bottom), 1 right, 2 top, 3 left
@@ -244,11 +245,12 @@ namespace Dorduncu.UI
                         tv.Show(Model.TileById(id));
                         tv.Draggable = true;
                         tv.DoubleClicked = OnTileDoubleClick;
+                        tv.DragStarted = x => _dragId = x.Tile.Id;
                         tv.Dropped = OnTileDropped;
                         _rackTiles[id] = tv;
                     }
                     tv.Home = SlotPos(r, s);
-                    tv.Rect.anchoredPosition = tv.Home;
+                    if (id != _dragId) tv.Rect.anchoredPosition = tv.Home;      // never yank the tile out of the player's finger
                     tv.Glow(finishing != null && finishing.Id == id);
                 }
             UpdateButtons();
@@ -276,12 +278,14 @@ namespace Dorduncu.UI
             var t = Model.Turn;
             bool live = t != null && Model.Result == null && Model.View != null && (Model.View.Phase == Phases.Draw || Model.View.Phase == Phases.Discard);
             if (!live) { foreach (var p in _plates) p.Ring(0, false); return; }
-            if (t.Seat != _turnSeat || t.Deadline != _turnDeadline)
+            // a new turn restarts the ring; poll-to-poll clock jitter only nudges the deadline
+            if (t.Seat != _turnSeat || t.Phase != _turnPhase || Math.Abs(t.Deadline - _turnDeadline) > 1500)
             {
                 _turnSeat = t.Seat;
-                _turnDeadline = t.Deadline;
+                _turnPhase = t.Phase;
                 _turnStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             }
+            _turnDeadline = t.Deadline;
             long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             float total = Mathf.Max(1, _turnDeadline - _turnStart);
             float left = Mathf.Clamp01((_turnDeadline - now) / total);
@@ -344,6 +348,7 @@ namespace Dorduncu.UI
         /// <summary>Dropped on my discard pile → throw; on the indicator → finish with it; anywhere on the rack → move to the nearest slot.</summary>
         private void OnTileDropped(TileView tv)
         {
+            _dragId = -1;
             var pos = tv.Rect.anchoredPosition + RackPos;                       // rack-local → screen-center coordinates
             if (Model.CanDiscard && Vector2.Distance(pos, PilePos[0]) < 110) { Throw(tv.Tile.Id); tv.Rect.anchoredPosition = tv.Home; return; }
             if (Model.CanDiscard && Vector2.Distance(pos, IndicatorPos) < 100) { Model.Finish(tv.Tile.Id); tv.Rect.anchoredPosition = tv.Home; return; }

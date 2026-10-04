@@ -10,6 +10,9 @@ sıralama, turnuvalar, profil, mağaza ve sohbet. Sunucu: [dorduncu-api](https:/
 3. Çevrimiçi oyun için API adresi: `Assets/Resources/Dorduncu/config.json` → `apiUrl` (ör. `https://api.dorduncu.app`).
    Geliştirirken *Dördüncü → API: yerel* menüsü `http://127.0.0.1:8000` kullanır. Adres boşsa oyun yalnızca botlara karşı oynar.
 
+Geliştirme kolaylığı için *Player → Allow downloads over HTTP* "Always allowed" ayarlıdır (yerel `http://` API). Yayın
+derlemesinden önce HTTPS API adresi kullanıp bu ayarı "Not allowed" yapın.
+
 Bütün arayüz koddan kurulur (`GameApp` herhangi bir sahneye kendini ekler); prefab veya sahne bağlantısı yoktur. Unity ilk
 açılışta `.meta` dosyalarını üretir — bunları depoya ekleyin.
 
