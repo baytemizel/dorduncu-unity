@@ -1,0 +1,4 @@
+{
+ "version": 1,
+ "tileEncoding": "color R|Y|B|K + value 1..13, F = fake okey; ids 0..103 = color-major, value, copy; 104,105 = fake"
+}
