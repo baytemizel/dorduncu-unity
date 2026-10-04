@@ -14,3 +14,17 @@ API'sinde de geçer. Çalıştırma:
 
 - Unity: *Window → General → Test Runner → EditMode → Run All*
 - Unity olmadan: `cd Tools/EngineTests && dotnet run -c Release` (.NET 8)
+
+## İstemci çekirdeği — `Assets/Dorduncu/Client`
+
+UnityEngine'e bağımlı olmayan (`noEngineReferences`) ve bu yüzden düz .NET ile de test edilen katman:
+
+| Dosya | Ne yapar |
+|---|---|
+| `ApiClient.cs` | Laravel API istemcisi: oturum, 401'de tek seferlik şeffaf yenileme (anahtar döndürme), tüm uçlar |
+| `Tables.cs` | `ITableAdapter`: `OfflineTable` (motor + botlar cihazda) ve `OnlineTable` (REST masası, ≈1 sn yoklama) aynı mesajları üretir |
+| `TableModel.cs` | Masa ekranının modeli: ıstaka sırası (2×15), Seri/Çift Diz, bitiren taş, olay kuyruğu, hamleler |
+| `Protocol.cs`, `Json.cs` | Sunucu mesajları ve bağımlılıksız JSON |
+| `Platform.cs` | HTTP / zamanlayıcı / kalıcı depolama arayüzleri (Unity'de UnityWebRequest, Update ve PlayerPrefs) |
+
+Uçtan uca doğrulama (Unity olmadan, çalışan bir API'ye karşı tam maç): `cd Tools/OnlineE2E && dotnet run -c Release -- http://127.0.0.1:8000`

@@ -14,6 +14,7 @@ namespace NUnit.Framework
         public static void AreEqual(object e, object a, string m = null) { if (!Equals(e, a)) throw new Exception($"expected {e} got {a} {m}"); }
         public static void IsNull(object a, string m = null) { if (a != null) throw new Exception("expected null " + m); }
         public static void IsNotNull(object a, string m = null) { if (a == null) throw new Exception("expected not null " + m); }
+        public static void IsTrue(bool c, string m = null) { if (!c) throw new Exception("expected true " + m); }
     }
     public static class CollectionAssert
     {
@@ -52,10 +53,11 @@ public static class Runner
     public static int Main()
     {
         int fail = 0;
-        foreach (var m in typeof(Dorduncu.Tests.GoldenTests).GetMethods().Where(x => x.GetCustomAttribute<NUnit.Framework.TestAttribute>() != null))
+        foreach (var type in new[] { typeof(Dorduncu.Tests.GoldenTests), typeof(Dorduncu.Tests.ClientTests) })
+        foreach (var m in type.GetMethods().Where(x => x.GetCustomAttribute<NUnit.Framework.TestAttribute>() != null))
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            try { m.Invoke(new Dorduncu.Tests.GoldenTests(), null); Console.WriteLine($"PASS {m.Name} ({sw.ElapsedMilliseconds} ms)"); }
+            try { m.Invoke(Activator.CreateInstance(type), null); Console.WriteLine($"PASS {type.Name}.{m.Name} ({sw.ElapsedMilliseconds} ms)"); }
             catch (TargetInvocationException e) { fail++; Console.WriteLine($"FAIL {m.Name}: {e.InnerException.Message[..Math.Min(600, e.InnerException.Message.Length)]}"); }
         }
         return fail;
