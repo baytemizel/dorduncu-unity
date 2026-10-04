@@ -1,0 +1,4 @@
+{
+  "apiUrl": "",
+  "note": "Laravel API adresi (ör. https://api.dorduncu.app). Boş bırakılırsa oyun yalnızca botlara karşı çevrimdışı oynar."
+}

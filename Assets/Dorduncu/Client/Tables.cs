@@ -179,6 +179,8 @@ namespace Dorduncu.Client
         public string RoomId { get; private set; }
         public int MySeat { get; private set; } = -1;
         public int PollMs = 900;
+        /// <summary>server clock − local clock (turn deadlines are converted to the local clock).</summary>
+        public long ServerOffsetMs { get; private set; }
         private readonly ApiClient _api;
         private readonly IScheduler _clock;
         private long _lastSeq;
@@ -275,8 +277,9 @@ namespace Dorduncu.Client
             }
             _lastSeq = Math.Max(_lastSeq, d.L("lastSeq"));
             if (d.Has("view")) RaiseView(Protocol.View(d.Get("view")));
+            if (d.Has("serverTime")) ServerOffsetMs = d.L("serverTime") - _clock.NowMs;
             var turn = Protocol.Turn(d.Get("turn"));
-            if (turn != null) RaiseTurn(turn);
+            if (turn != null) { turn.Deadline -= ServerOffsetMs; RaiseTurn(turn); }   // deadline on the local clock
             if (d.Has("result") && !_resultSent) { _resultSent = true; RaiseResult(Protocol.Result(d.Get("result"))); }
             if (d.S("status") == "finished")
             {
